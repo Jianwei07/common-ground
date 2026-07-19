@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.open-next/
+coverage/
+dist/
+playwright-report/
+test-results/
+apps/web/public/sw.js
+apps/web/public/swe-worker-*.js
+*.ground
+*.log
+.DS_Store
+runner/common-ground-runner
