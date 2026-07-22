@@ -203,7 +203,7 @@ func pairRequest(server *Server, code string) *httptest.ResponseRecorder {
 
 func validRunRequest(token string) *http.Request {
 	body := `{"requestId":"request-1","runtimeId":"javascript","files":[{"path":"src/index.js","content":"console.log('secret-source')"}],"entrypoint":"src/index.js"}`
-	request := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(body))
+	request, _ := http.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(body))
 	request.Header.Set("Origin", testOrigin)
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
