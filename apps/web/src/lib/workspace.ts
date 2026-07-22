@@ -5,25 +5,21 @@ import {
   type GroundWorkspace,
   type PinnedRun,
   type RunConfiguration,
+  type RuntimeId,
 } from "@common-ground/protocol";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
 const LOCAL_STORAGE_PREFIX = "common-ground";
-const DEFAULT_FILE = "src/index.ts";
-const DEFAULT_SOURCE = `type Service = {
-  name: string;
-  port: number;
+
+export const RUN_DEFAULTS: Record<RuntimeId, { content: string; label: string; path: string }> = {
+  python: { content: 'print("Hello, Common Ground!")\n', label: "Python", path: "main.py" },
+  javascript: { content: 'console.log("Hello, Common Ground!");\n', label: "JavaScript", path: "main.js" },
+  typescript: { content: 'console.log("Hello, Common Ground!");\n', label: "TypeScript", path: "main.ts" },
+  go: { content: 'package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Hello, Common Ground!")\n}\n', label: "Go", path: "main.go" },
+  rust: { content: 'fn main() {\n    println!("Hello, Common Ground!");\n}\n', label: "Rust", path: "main.rs" },
 };
-
-const services: Service[] = [
-  { name: "api", port: 8080 },
-  { name: "worker", port: 8081 },
-];
-
-console.log(services.map(({ name, port }) => \`\${name}:\${port}\`).join("\\n"));
-`;
 
 type CanvasElement = Record<string, unknown> & {
   id: string;
@@ -173,6 +169,23 @@ export class WorkspaceDocument {
     this.#runs.set(configuration.id, { ...configuration, entrypoint: path });
   }
 
+  ensureRunConfiguration(runtimeId: RuntimeId): RunConfiguration {
+    const existing = [...this.#runs.values()].find((configuration) => configuration.runtimeId === runtimeId);
+    if (existing) return existing;
+    const program = RUN_DEFAULTS[runtimeId];
+    const configuration = {
+      id: this.#runs.has(`run-${runtimeId}`) ? crypto.randomUUID() : `run-${runtimeId}`,
+      name: `Run ${program.label}`,
+      runtimeId,
+      entrypoint: program.path,
+    };
+    this.doc.transact(() => {
+      if (!this.#files.has(program.path)) this.#files.set(program.path, new Y.Text(program.content));
+      this.#runs.set(configuration.id, configuration);
+    }, "runtime-add");
+    return configuration;
+  }
+
   pinRun(result: PinnedRun): void {
     if (!this.#runs.has(result.configurationId)) throw new Error("Run configuration does not exist");
     this.#pinnedRuns.set(result.id, result);
@@ -253,15 +266,16 @@ export class WorkspaceDocument {
 
   initializeBlank(): void {
     if (this.#meta.has("workspaceId")) return;
+    const program = RUN_DEFAULTS.python;
     this.replace({
       workspaceId: this.storageId,
       name: "Untitled ground",
       canvas: { elements: [], appState: { viewBackgroundColor: "#f4efe5" } },
-      files: [{ path: DEFAULT_FILE, content: DEFAULT_SOURCE }],
+      files: [{ path: program.path, content: program.content }],
       links: [],
       runs: {
         configurations: [
-          { id: "run-main", name: "Run main", runtimeId: "typescript", entrypoint: DEFAULT_FILE },
+          { id: "run-python", name: "Run Python", runtimeId: "python", entrypoint: program.path },
         ],
         pinnedResults: [],
       },
@@ -302,7 +316,7 @@ function compareCanvasElements(left: CanvasElement, right: CanvasElement): numbe
   return left.id.localeCompare(right.id);
 }
 
-function selectCanvasState(appState: Record<string, unknown>): Record<string, unknown> {
+export function selectCanvasState(appState: Record<string, unknown>): Record<string, unknown> {
   const allowed = ["viewBackgroundColor", "gridSize", "gridStep", "gridModeEnabled", "objectsSnapModeEnabled"];
   return Object.fromEntries(allowed.flatMap((key) => (appState[key] === undefined ? [] : [[key, appState[key]]])));
 }

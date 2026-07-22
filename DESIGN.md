@@ -5,7 +5,7 @@ Product line: **Design systems together.**
 
 ## 1. Product definition
 
-Common Ground is a local-first architecture workbench for engineering teams. A single working surface combines an Excalidraw canvas, a multi-file Monaco workspace, local code execution, and optional encrypted collaboration. The portable unit is one `.ground` file.
+Common Ground is a local-first architecture workbench for engineering teams. A single working surface combines an Excalidraw canvas, a Python-first Monaco workspace, local code execution, and optional encrypted collaboration. The portable unit is one `.ground` file.
 
 The launch category is team architecture work, not interview software. CoderPad and HackerRank already pair collaborative drawing with runnable editors; a split screen is not a moat. Common Ground instead owns the complete local artifact: diagram, source, diagram-to-code links, run configurations, and selected results.
 
@@ -67,7 +67,7 @@ The launch category is team architecture work, not interview software. CoderPad 
 
 ### Desktop layout
 
-The product opens directly into a resizable workbench. A compact top bar contains the editable workspace name, local/room status, presence, Run, and Share. Beneath it, the warm canvas sits to the left and the editor sits to the right. The editor contains a collapsible file tree, tabs, Monaco, and collapsible output. Either main pane can enter focus mode.
+The product opens directly into a resizable workbench. A compact top bar contains the editable workspace name, local/room status, presence, import/export, and Share. Beneath it, the warm canvas sits to the left and the editor sits to the right. New workspaces open `main.py`; a compact toolbar above Monaco selects Python, JavaScript, TypeScript, Go, or Rust and runs the remembered file for that language. The Result panel below Monaco is open by default. Either main pane can enter focus mode.
 
 There is no dashboard, marketing hero, permanent inspector, or card grid.
 
@@ -183,7 +183,7 @@ POST   /v1/runs
 DELETE /v1/runs/:requestId
 ```
 
-The helper displays a short one-time pairing code. A successful pair returns a random bearer token. Every non-health request requires both an exact configured Origin and the token. CORS never uses `*`. The helper exits after 15 minutes without an authenticated client or active run.
+On the first Run, the workbench shows the exact-origin command needed to start the helper, checks its loopback connection, then asks for the short one-time pairing code. A successful pair returns a random bearer token and immediately runs the selected program; later runs need one click. Every non-health request requires both an exact configured Origin and the token. CORS never uses `*`. The helper exits after 15 minutes without an authenticated client or active run.
 
 The request surface is closed: runtime ID, files, entrypoint, and optional stdin only. Paths and total source size are validated. Images and invocation templates are compiled into the helper.
 
@@ -199,7 +199,7 @@ Every Docker run uses a digest-pinned multi-architecture image and enforces:
 - 1 MB combined output and 10 MB source limits
 - exact container ID/name tracking, `--rm`, cancellation, and label-scoped orphan cleanup
 
-No Docker socket, host path, arbitrary image, command, flag, mount, or environment variable is client-controlled. Cleanup never performs a global prune. Runtime order is JavaScript/TypeScript, Python, Go, then Rust. Package installation and runtime networking are excluded.
+No Docker socket, host path, arbitrary image, command, flag, mount, or environment variable is client-controlled. Cleanup never performs a global prune. The editor presents Python first, followed by JavaScript, TypeScript, Go, and Rust. Package installation and runtime networking are excluded.
 
 ## 7. Encrypted room contract
 
@@ -216,9 +216,9 @@ One room permits 10 active editors and 25 present participants. Edit-link posses
 ## 8. Delivery roadmap
 
 1. Establish product, domain, UX, security, and architecture contracts.
-2. Ship the offline workbench for canvas, JS/TS files, links, and `.ground` import/export.
-3. Add the paired loopback helper and JS/TS Docker execution.
-4. Reuse the fixed runner path for Python, Go, and Rust.
+2. Ship the offline workbench for canvas, Python-first files, links, and `.ground` import/export.
+3. Add the guided paired loopback helper and Python Docker execution.
+4. Reuse the fixed runner path for JavaScript, TypeScript, Go, and Rust.
 5. Add encrypted ephemeral rooms and snapshots.
 6. Release after functional, security, accessibility, performance, and multi-client checks pass.
 

@@ -1,13 +1,13 @@
 "use client";
 
-import type { GroundFile } from "@common-ground/protocol";
+import type { GroundFile, RuntimeId } from "@common-ground/protocol";
 import type { BeforeMount, OnMount } from "@monaco-editor/react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 
 import { useLayoutStore } from "../lib/layout-store";
 import type { WorkspaceDocument } from "../lib/workspace";
-import { AddIcon, CloseIcon, FileIcon, FocusIcon, SidebarIcon } from "./icons";
+import { AddIcon, CloseIcon, FileIcon, FocusIcon, RunIcon, SidebarIcon } from "./icons";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), {
   loading: () => <div className="pane-loading dark">Loading editor…</div>,
@@ -18,24 +18,34 @@ export function EditorPane({
   activePath,
   files,
   focused,
+  language,
   model,
   onActivate,
   onCloseTab,
   onFocus,
+  onLanguage,
   onNewFile,
+  onRun,
   openPaths,
   pendingLine,
+  runnerStatus,
+  running,
 }: {
   activePath: string | null;
   files: GroundFile[];
   focused: boolean;
+  language: RuntimeId;
   model: WorkspaceDocument;
   onActivate: (path: string) => void;
   onCloseTab: (path: string) => void;
   onFocus: () => void;
+  onLanguage: (runtimeId: RuntimeId) => void;
   onNewFile: () => void;
+  onRun: () => void;
   openPaths: string[];
   pendingLine: number | null;
+  runnerStatus: string;
+  running: boolean;
 }) {
   const treeOpen = useLayoutStore((state) => state.treeOpen);
   const setTreeOpen = useLayoutStore((state) => state.setTreeOpen);
@@ -63,13 +73,25 @@ export function EditorPane({
           </aside>
         ) : null}
         <div className="editor-main">
-          <div aria-label="Open files" className="editor-tabs" role="tablist">
+          <div aria-label="Open files" className="editor-tabs" role="group">
             {openPaths.map((path) => (
-              <div className={path === activePath ? "editor-tab active" : "editor-tab"} key={path} role="presentation">
-                <button aria-selected={path === activePath} onClick={() => onActivate(path)} role="tab" type="button">{basename(path)}</button>
+              <div className={path === activePath ? "editor-tab active" : "editor-tab"} key={path}>
+                <button aria-current={path === activePath ? "page" : undefined} onClick={() => onActivate(path)} type="button">{basename(path)}</button>
                 <button aria-label={`Close ${path}`} className="tab-close" onClick={() => onCloseTab(path)} type="button"><CloseIcon /></button>
               </div>
             ))}
+          </div>
+          <div className="run-toolbar">
+            <label className="visually-hidden" htmlFor="run-language">Language</label>
+            <select className="language-select" id="run-language" onChange={(event) => onLanguage(event.target.value as RuntimeId)} value={language}>
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+              <option value="typescript">TypeScript</option>
+              <option value="go">Go</option>
+              <option value="rust">Rust</option>
+            </select>
+            <span aria-live="polite" className="runner-status">{runnerStatus}</span>
+            <button className="button primary run-button" disabled={running} onClick={onRun} type="button"><RunIcon />{running ? "Running" : "Run"}</button>
           </div>
           <div className="monaco-shell">
             {activePath ? <BoundEditor key={activePath} line={pendingLine} model={model} path={activePath} /> : <EmptyEditor onNewFile={onNewFile} />}

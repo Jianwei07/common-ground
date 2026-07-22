@@ -1,0 +1,50 @@
+diff --git a/dist/index.cjs.js b/dist/index.cjs.js
+--- a/dist/index.cjs.js
++++ b/dist/index.cjs.js
+@@ -34 +34,2 @@
+-      const version = useStore(state => state.version);
++      const childrenRef = React__default["default"].useRef(children);
++      childrenRef.current = children;
+@@ -40,5 +40,0 @@
+-      useIsomorphicLayoutEffect(() => {
+-        set(state => ({
+-          version: state.version + 1
+-        }));
+-      }, []);
+@@ -52 +48 @@
+-          current: [...current, children]
++          current: [...current, childrenRef]
+@@ -57 +53 @@
+-          current: current.filter(c => c !== children)
++          current: current.filter(c => c !== childrenRef)
+@@ -59 +55 @@
+-      }, [children, version]);
++      }, []);
+@@ -64 +60 @@
+-      return /*#__PURE__*/React__default["default"].createElement(React__default["default"].Fragment, null, current);
++      return /*#__PURE__*/React__default["default"].createElement(React__default["default"].Fragment, null, current.map(ref => ref.current));
+diff --git a/dist/index.js b/dist/index.js
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -28 +28,2 @@
+-      const version = useStore(state => state.version);
++      const childrenRef = React.useRef(children);
++      childrenRef.current = children;
+@@ -34,5 +34,0 @@
+-      useIsomorphicLayoutEffect(() => {
+-        set(state => ({
+-          version: state.version + 1
+-        }));
+-      }, []);
+@@ -46 +42 @@
+-          current: [...current, children]
++          current: [...current, childrenRef]
+@@ -51 +47 @@
+-          current: current.filter(c => c !== children)
++          current: current.filter(c => c !== childrenRef)
+@@ -53 +49 @@
+-      }, [children, version]);
++      }, []);
+@@ -58 +54 @@
+-      return /*#__PURE__*/React.createElement(React.Fragment, null, current);
++      return /*#__PURE__*/React.createElement(React.Fragment, null, current.map(ref => ref.current));

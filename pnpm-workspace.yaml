@@ -6,3 +6,6 @@ allowBuilds:
   esbuild: true
   sharp: true
   workerd: true
+
+patchedDependencies:
+  tunnel-rat@0.1.2: patches/tunnel-rat@0.1.2.patch

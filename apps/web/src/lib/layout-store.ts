@@ -17,7 +17,7 @@ type LayoutState = {
 
 export const useLayoutStore = create<LayoutState>((set) => ({
   focus: null,
-  outputOpen: false,
+  outputOpen: true,
   split: 52,
   treeOpen: true,
   setFocus: (focus) => set({ focus }),

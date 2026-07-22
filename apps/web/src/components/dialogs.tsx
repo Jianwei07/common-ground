@@ -41,16 +41,47 @@ export function NewFileDialog({
 }
 
 export function PairDialog({
+  command,
+  connected,
+  onCheck,
   onClose,
   onPair,
   open,
-}: BaseDialogProps & { onPair: (code: string) => Promise<void> }) {
+}: BaseDialogProps & {
+  command: string;
+  connected: boolean;
+  onCheck: () => Promise<void>;
+  onPair: (code: string) => Promise<void>;
+}) {
   const dialog = useDialog(open);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const check = async () => {
+    setPending(true);
+    setError(null);
+    try {
+      await onCheck();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Runner not detected");
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(true);
+    } catch {
+      setError("Command could not be copied");
+    }
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!connected) return;
     setPending(true);
     setError(null);
     const code = String(new FormData(event.currentTarget).get("code") ?? "");
@@ -67,12 +98,25 @@ export function PairDialog({
   return (
     <dialog aria-labelledby="pair-title" className="dialog" onCancel={onClose} onClose={onClose} ref={dialog}>
       <form onSubmit={(event) => void submit(event)}>
-        <DialogHeading id="pair-title" onClose={onClose}>Pair local runner</DialogHeading>
-        <p className="dialog-copy">Enter the one-time code shown by the foreground helper. Source stays on this machine.</p>
-        <label className="field-label" htmlFor="pair-code">One-time code</label>
-        <input autoComplete="one-time-code" autoFocus className="text-field pair-code" id="pair-code" inputMode="numeric" maxLength={8} name="code" required />
+        <DialogHeading id="pair-title" onClose={onClose}>Set up local runner</DialogHeading>
+        {connected ? (
+          <>
+            <p className="dialog-copy">Enter the one-time code shown by the foreground helper. Source stays on this machine.</p>
+            <label className="field-label" htmlFor="pair-code">Pairing code</label>
+            <input autoComplete="one-time-code" autoFocus className="text-field pair-code" id="pair-code" inputMode="numeric" maxLength={8} name="code" required />
+          </>
+        ) : (
+          <>
+            <p className="dialog-copy">From the repository root, start the Docker-backed runner for this exact browser origin.</p>
+            <pre className="runner-command"><code>{command}</code></pre>
+            <div aria-live="polite" className="dialog-actions runner-setup-actions">
+              <button className="button secondary" onClick={() => void copy()} type="button">{copied ? "Copied" : "Copy command"}</button>
+              <button className="button primary" disabled={pending} onClick={() => void check()} type="button">{pending ? "Checking…" : "Check connection"}</button>
+            </div>
+          </>
+        )}
         {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <div className="dialog-actions"><button className="button secondary" onClick={onClose} type="button">Cancel</button><button className="button primary" disabled={pending} type="submit">{pending ? "Pairing…" : "Pair runner"}</button></div>
+        {connected ? <div className="dialog-actions"><button className="button secondary" onClick={onClose} type="button">Cancel</button><button className="button primary" disabled={pending} type="submit">{pending ? "Pairing…" : "Pair and run"}</button></div> : null}
       </form>
     </dialog>
   );
