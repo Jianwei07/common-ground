@@ -36,6 +36,7 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [activeConfigurationId, setActiveConfigurationId] = useState<string | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
+  const [runFilesKey, setRunFilesKey] = useState<string | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [openPaths, setOpenPaths] = useState<string[]>([]);
@@ -78,6 +79,7 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
   if (workspaceError || room.error) return <FailureScreen message={workspaceError ?? room.error ?? "Common Ground failed closed"} />;
   if (!model || !snapshot) return <LoadingScreen />;
 
+  const resultStale = events.length > 0 && runFilesKey !== JSON.stringify(snapshot.files);
   const selectedLink = snapshot.links.find((link) => link.elementId === selectedElementId);
   const activate = (path: string, line: number | null = null) => {
     setActivePath(path);
@@ -127,6 +129,7 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
       activate(configuration.entrypoint);
       current = model.getSnapshot();
     }
+    setRunFilesKey(JSON.stringify(current.files));
     const requestId = crypto.randomUUID();
     const controller = new AbortController();
     runAbort.current = controller;
@@ -241,7 +244,7 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
             runnerStatus={running ? "Running…" : runnerStatus === "paired" ? "Runner paired" : runnerStatus === "ready" ? "Runner ready to pair" : runnerStatus === "checking" ? "Checking runner…" : "Runner offline"}
             running={running}
           />
-          <OutputPanel events={events} onStop={() => void stop()} running={running} />
+          <OutputPanel events={events} onStop={() => void stop()} running={running} stale={resultStale} />
         </div>
       </div>
       {selectedElementId && !selectedLink && !isMobile ? <button className="link-selection-button" onClick={() => setLinkDialogOpen(true)} type="button"><LinkIcon />Link selected element</button> : null}

@@ -17,6 +17,12 @@ test("opens the local workbench and supports keyboard pane resizing", async ({ p
   await splitter.press("ArrowRight");
   await expect(splitter).toHaveAttribute("aria-valuenow", String(before + 2));
 
+  const outputSplitter = page.getByRole("separator", { name: "Resize editor and result" });
+  const outputBefore = Number(await outputSplitter.getAttribute("aria-valuenow"));
+  await outputSplitter.focus();
+  await outputSplitter.press("ArrowUp");
+  await expect(outputSplitter).toHaveAttribute("aria-valuenow", String(outputBefore + 20));
+
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((violation) => violation.impact === "critical" || violation.impact === "serious")).toEqual([]);
 });
@@ -101,6 +107,56 @@ test("guides local runner setup, pairs, and immediately runs Python", async ({ p
   await expect(result).toContainText("Hello from Python");
   await expect(result).toContainText("warning");
   await expect(result).toContainText("completed · exit 0");
+});
+
+test("marks old results stale and runs the current editor source", async ({ page }, testInfo) => {
+  const baseURL = testInfo.project.use.baseURL;
+  if (typeof baseURL !== "string") throw new Error("Playwright baseURL is required");
+  const appOrigin = new URL(baseURL).origin;
+  const runs: Array<{ files: Array<{ path: string; content: string }>; requestId: string }> = [];
+  await page.addInitScript(() => localStorage.setItem("common-ground:runner-token", "a".repeat(64)));
+  await page.route("http://127.0.0.1:43117/**", async (route) => {
+    const request = route.request();
+    const headers = {
+      "access-control-allow-headers": "Authorization, Content-Type",
+      "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+      "access-control-allow-origin": appOrigin,
+      "content-type": "application/json",
+    };
+    if (request.method() === "OPTIONS") return route.fulfill({ headers, status: 204 });
+    if (request.url().endsWith("/v1/health")) {
+      return route.fulfill({ body: JSON.stringify({ paired: true, status: "ready", version: "test" }), headers });
+    }
+    const run = request.postDataJSON();
+    runs.push(run);
+    const currentSource = run.files.find((file: { path: string }) => file.path === "main.py")?.content ?? "";
+    const failed = currentSource.includes("RuntimeError");
+    const body = [
+      { requestId: run.requestId, type: "status", status: "running" },
+      failed
+        ? { requestId: run.requestId, type: "stderr", chunk: "RuntimeError: current source\n" }
+        : { requestId: run.requestId, type: "stdout", chunk: "Hello, Common Ground!\n" },
+      { requestId: run.requestId, type: "exit", exitCode: failed ? 1 : 0, reason: "completed" },
+    ].map((event) => JSON.stringify(event)).join("\n");
+    return route.fulfill({ body, headers: { ...headers, "content-type": "application/x-ndjson" } });
+  });
+
+  await page.goto("/workspace");
+  await page.getByRole("button", { exact: true, name: "Run" }).click();
+  const result = page.getByRole("region", { name: "Result" });
+  await expect(result).toContainText("Hello, Common Ground!");
+
+  await page.getByRole("textbox", { name: "Editor content" }).focus();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText("raise RuntimeError('current source')");
+  await expect(result).toContainText("Source changed · run again");
+  await expect(result).not.toContainText("Hello, Common Ground!");
+
+  await page.getByRole("button", { exact: true, name: "Run" }).click();
+  await expect.poll(() => runs.length).toBe(2);
+  expect(runs[1]?.files.find((file) => file.path === "main.py")?.content).toBe("raise RuntimeError('current source')");
+  await expect(result).toContainText("RuntimeError: current source");
+  await expect(result).toContainText("completed · exit 1");
 });
 
 test("redirects the root and makes narrow screens presentation-only", async ({ page }) => {

@@ -3,7 +3,7 @@
 import type { GroundFile, RuntimeId } from "@common-ground/protocol";
 import type { BeforeMount, OnMount } from "@monaco-editor/react";
 import dynamic from "next/dynamic";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useLayoutStore } from "../lib/layout-store";
 import type { WorkspaceDocument } from "../lib/workspace";
@@ -104,24 +104,28 @@ export function EditorPane({
 
 function BoundEditor({ line, model, path }: { line: number | null; model: WorkspaceDocument; path: string }) {
   const binding = useRef<{ destroy(): void } | null>(null);
-  const disposed = useRef(false);
+  const [bindingModule, setBindingModule] = useState<typeof import("y-monaco") | null>(null);
+  useEffect(() => {
+    let active = true;
+    void import("y-monaco").then((module) => {
+      if (active) setBindingModule(module);
+    });
+    return () => {
+      active = false;
+      binding.current?.destroy();
+    };
+  }, []);
+  if (!bindingModule) return <div className="pane-loading dark">Loading editor…</div>;
   const onMount: OnMount = (editor) => {
     const textModel = editor.getModel();
     if (!textModel) return;
-    void import("y-monaco").then(({ MonacoBinding }) => {
-      if (disposed.current || editor.getModel() !== textModel) return;
-      binding.current = new MonacoBinding(model.getFileText(path), textModel, new Set([editor]), model.awareness);
-      if (line) {
-        editor.revealLineInCenter(line);
-        editor.setPosition({ column: 1, lineNumber: line });
-        editor.focus();
-      }
-    });
+    binding.current = new bindingModule.MonacoBinding(model.getFileText(path), textModel, new Set([editor]), model.awareness);
+    if (line) {
+      editor.revealLineInCenter(line);
+      editor.setPosition({ column: 1, lineNumber: line });
+      editor.focus();
+    }
   };
-  useEffect(() => () => {
-    disposed.current = true;
-    binding.current?.destroy();
-  }, []);
 
   return (
     <Editor
@@ -140,7 +144,10 @@ function BoundEditor({ line, model, path }: { line: number | null; model: Worksp
         renderLineHighlight: "all",
         scrollBeyondLastLine: false,
         smoothScrolling: true,
+        scrollbar: { horizontal: "hidden" },
         tabSize: 2,
+        wordWrap: "on",
+        wrappingIndent: "indent",
       }}
       path={`file:///${path}`}
       theme="common-ground"
