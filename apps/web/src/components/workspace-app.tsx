@@ -18,7 +18,7 @@ import { storeRoomSeed, useWorkspace } from "../lib/use-workspace";
 import { CanvasPane } from "./canvas-pane";
 import { LinkDialog, NewFileDialog, PairDialog } from "./dialogs";
 import { EditorPane } from "./editor-pane";
-import { BrandMark, ExportIcon, ImportIcon, LinkIcon, RunIcon, ShareIcon } from "./icons";
+import { BrandMark, ExportIcon, ImportIcon, LinkIcon, ShareIcon } from "./icons";
 import { OutputPanel } from "./output-panel";
 
 type RunnerStatus = "checking" | "offline" | "paired" | "ready";
@@ -43,6 +43,7 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
   const [pendingLine, setPendingLine] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [runnerStatus, setRunnerStatus] = useState<RunnerStatus>("checking");
+  const [runnerOrigin, setRunnerOrigin] = useState("");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -52,10 +53,12 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
   useEffect(() => {
     const controller = new AbortController();
     void runner.health(controller.signal)
-      .then(() => setRunnerStatus(hasRunnerToken() ? "paired" : "ready"))
+      .then((health) => setRunnerStatus(health.paired && hasRunnerToken() ? "paired" : "ready"))
       .catch(() => setRunnerStatus("offline"));
     return () => controller.abort();
   }, [runner]);
+
+  useEffect(() => setRunnerOrigin(location.origin), []);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -110,15 +113,19 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
       setActivePath(remaining[remaining.length - 1] ?? null);
     }
   };
-  const run = async () => {
-    const configuration = snapshot.runs.configurations.find((candidate) => candidate.id === activeConfigurationId) ?? snapshot.runs.configurations[0];
+  const selectLanguage = (runtimeId: RuntimeId) => {
+    const configuration = model.ensureRunConfiguration(runtimeId);
+    setActiveConfigurationId(configuration.id);
+    activate(configuration.entrypoint);
+  };
+  const executeRun = async () => {
+    let current = model.getSnapshot();
+    let configuration = current.runs.configurations.find((candidate) => candidate.id === activeConfigurationId) ?? current.runs.configurations[0];
     if (!configuration) {
-      setToast("Create a file and run configuration first.");
-      return;
-    }
-    if (!hasRunnerToken()) {
-      setPairOpen(true);
-      return;
+      configuration = model.ensureRunConfiguration("python");
+      setActiveConfigurationId(configuration.id);
+      activate(configuration.entrypoint);
+      current = model.getSnapshot();
     }
     const requestId = crypto.randomUUID();
     const controller = new AbortController();
@@ -130,7 +137,7 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
       for await (const event of runner.run({
         requestId,
         runtimeId: configuration.runtimeId,
-        files: snapshot.files,
+        files: current.files,
         entrypoint: configuration.entrypoint,
         ...(configuration.stdin === undefined ? {} : { stdin: configuration.stdin }),
       }, controller.signal)) {
@@ -144,6 +151,13 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
       runAbort.current = null;
       setRunning(false);
     }
+  };
+  const run = () => {
+    if (!hasRunnerToken() || runnerStatus === "offline") {
+      setPairOpen(true);
+      return;
+    }
+    void executeRun();
   };
   const stop = async () => {
     const requestId = events[0]?.requestId;
@@ -189,14 +203,11 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
         onExport={exportWorkspace}
         onImport={() => fileInput.current?.click()}
         onName={(name) => model.setName(name)}
-        onRun={() => void run()}
         onShare={() => void share().catch((cause) => setToast(safeError(cause)))}
         participants={room.participants}
         roomStatus={room.status}
-        runnerStatus={runnerStatus}
-        running={running}
       />
-      <input accept=".ground,application/zip" className="visually-hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importFile(file); event.currentTarget.value = ""; }} ref={fileInput} type="file" />
+      <input accept=".ground,application/zip" aria-label="Import Ground artifact file" className="visually-hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importFile(file); event.currentTarget.value = ""; }} ref={fileInput} type="file" />
       {isMobile ? <div className="mobile-notice"><strong>Presentation mode</strong><span>Editing is available on a desktop browser.</span></div> : null}
       <div className="workspace-grid" style={style}>
         <CanvasPane
@@ -217,23 +228,50 @@ export function WorkspaceApp({ roomId }: { roomId?: string }) {
             activePath={activePath}
             files={snapshot.files}
             focused={focus === "editor"}
+            language={(snapshot.runs.configurations.find((configuration) => configuration.id === activeConfigurationId) ?? snapshot.runs.configurations[0])?.runtimeId ?? "python"}
             model={model}
             onActivate={activate}
             onCloseTab={closeTab}
             onFocus={() => setFocus(focus === "editor" ? null : "editor")}
+            onLanguage={selectLanguage}
             onNewFile={() => setNewFileOpen(true)}
+            onRun={run}
             openPaths={openPaths}
             pendingLine={pendingLine}
+            runnerStatus={running ? "Running…" : runnerStatus === "paired" ? "Runner paired" : runnerStatus === "ready" ? "Runner ready to pair" : runnerStatus === "checking" ? "Checking runner…" : "Runner offline"}
+            running={running}
           />
-          <OutputPanel activeConfigurationId={activeConfigurationId} events={events} model={model} onConfiguration={setActiveConfigurationId} onStop={() => void stop()} running={running} workspace={snapshot} />
+          <OutputPanel events={events} onStop={() => void stop()} running={running} />
         </div>
       </div>
       {selectedElementId && !selectedLink && !isMobile ? <button className="link-selection-button" onClick={() => setLinkDialogOpen(true)} type="button"><LinkIcon />Link selected element</button> : null}
       <NewFileDialog onClose={() => setNewFileOpen(false)} onCreate={createFile} open={newFileOpen} />
-      <PairDialog onClose={() => setPairOpen(false)} onPair={async (code) => { await pairRunner(code); setRunnerStatus("paired"); }} open={pairOpen} />
+      <PairDialog
+        command={`go run ./runner/cmd/common-ground-runner -origin ${runnerOrigin || "<current-origin>"}`}
+        connected={runnerStatus === "ready"}
+        onCheck={async () => {
+          const health = await runner.health();
+          if (health.paired && !hasRunnerToken()) throw new Error("Runner is already paired. Restart it to get a new code.");
+          if (health.paired) {
+            setRunnerStatus("paired");
+            setPairOpen(false);
+            void executeRun();
+          } else {
+            setRunnerStatus("ready");
+          }
+        }}
+        onClose={() => setPairOpen(false)}
+        onPair={async (code) => {
+          await pairRunner(code);
+          setRunnerStatus("paired");
+          setPairOpen(false);
+          void executeRun();
+        }}
+        open={pairOpen}
+      />
       <LinkDialog elementId={selectedElementId} {...(selectedLink ? { existing: selectedLink } : {})} onClose={() => setLinkDialogOpen(false)} onSave={(link) => model.setLink(link)} open={linkDialogOpen} workspace={snapshot} />
       {toast ? <div className="toast" role="status"><span>{toast}</span><button aria-label="Dismiss message" onClick={() => setToast(null)} type="button">×</button></div> : null}
-      {outputOpen ? null : <button className="output-reopen" onClick={() => setOutputOpen(true)} type="button">Output</button>}
+      {outputOpen ? null : <button className="output-reopen" onClick={() => setOutputOpen(true)} type="button">Result</button>}
     </main>
   );
 }
@@ -244,24 +282,18 @@ function TopBar({
   onExport,
   onImport,
   onName,
-  onRun,
   onShare,
   participants,
   roomStatus,
-  runnerStatus,
-  running,
 }: {
   isRoom: boolean;
   name: string;
   onExport: () => void;
   onImport: () => void;
   onName: (name: string) => void;
-  onRun: () => void;
   onShare: () => void;
   participants: number;
   roomStatus: "connecting" | "encrypted" | "local";
-  runnerStatus: RunnerStatus;
-  running: boolean;
 }) {
   const [draftName, setDraftName] = useState(name);
   useEffect(() => setDraftName(name), [name]);
@@ -277,8 +309,6 @@ function TopBar({
       <div className="topbar-actions">
         <button className="icon-button topbar-utility" onClick={onImport} title="Import .ground" type="button"><ImportIcon /><span className="visually-hidden">Import Ground artifact</span></button>
         <button className="icon-button topbar-utility" onClick={onExport} title="Export .ground" type="button"><ExportIcon /><span className="visually-hidden">Export Ground artifact</span></button>
-        <span className={`runner-label ${runnerStatus}`}>{runnerStatus === "paired" ? "Runner paired" : runnerStatus === "ready" ? "Runner available" : runnerStatus === "checking" ? "Checking runner" : "Runner offline"}</span>
-        <button className="button run-button" disabled={running} onClick={onRun} type="button"><RunIcon />{running ? "Running" : "Run"}</button>
         <button className="button primary share-button" onClick={onShare} type="button"><ShareIcon />{isRoom ? "Copy link" : "Share"}</button>
       </div>
     </header>

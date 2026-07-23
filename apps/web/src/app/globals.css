@@ -144,8 +144,7 @@ select:focus-visible,
   margin-left: 2px;
 }
 
-.status-label,
-.runner-label {
+.status-label {
   align-items: center;
   color: #8e938f;
   display: inline-flex;
@@ -161,8 +160,7 @@ select:focus-visible,
   width: 6px;
 }
 
-.status-label.room .status-dot,
-.runner-label.paired::before {
+.status-label.room .status-dot {
   background: var(--accent);
 }
 
@@ -289,18 +287,6 @@ select:focus-visible,
   width: 28px;
 }
 
-.runner-label::before {
-  background: #5b605d;
-  border-radius: 50%;
-  content: "";
-  height: 5px;
-  width: 5px;
-}
-
-.runner-label.offline {
-  color: #757a76;
-}
-
 .workspace-grid {
   display: grid;
   gap: 0;
@@ -374,7 +360,7 @@ select:focus-visible,
 }
 
 .canvas-heading .pane-detail {
-  color: #77736b;
+  color: #625e57;
 }
 
 .canvas-heading .icon-button {
@@ -390,6 +376,7 @@ select:focus-visible,
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .canvas-stage .excalidraw {
@@ -403,11 +390,134 @@ select:focus-visible,
   top: 10px;
 }
 
+.canvas-stage .excalidraw .App-menu_top__left > :first-child,
+.canvas-stage .excalidraw .default-sidebar-trigger,
+.canvas-stage .excalidraw .help-icon,
+.canvas-stage .excalidraw [data-testid="main-menu-trigger"],
+.canvas-stage .excalidraw [data-testid="toolbar-freedraw"] {
+  display: none !important;
+}
+
+.whiteboard-timer,
+.whiteboard-repository,
+.whiteboard-guide {
+  position: absolute;
+  z-index: 4;
+}
+
+.whiteboard-timer {
+  align-items: center;
+  background: #f2f3f4;
+  border-radius: 8px;
+  color: #1f2933;
+  display: flex;
+  gap: 2px;
+  left: 12px;
+  padding: 5px 8px;
+  top: 10px;
+}
+
+.whiteboard-timer button,
+.whiteboard-repository,
+.whiteboard-guide-close {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.whiteboard-timer button {
+  border-radius: 4px;
+  height: 24px;
+  padding: 0;
+  width: 24px;
+}
+
+.whiteboard-timer button:hover,
+.whiteboard-repository:hover,
+.whiteboard-guide-close:hover {
+  background: rgb(31 41 51 / 8%);
+}
+
+.whiteboard-timer output {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 24px;
+  margin-left: 3px;
+  min-width: 38px;
+}
+
+.whiteboard-repository {
+  background: #f2f3f4;
+  border: 1px solid #e2e4e7;
+  border-radius: 50%;
+  height: 36px;
+  right: 12px;
+  top: 10px;
+  width: 36px;
+}
+
+.whiteboard-guide {
+  background: #f0f2f4;
+  border: 1px solid #e2e4e7;
+  border-radius: 8px;
+  bottom: 12px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  color: #28313a;
+  font-size: 11px;
+  padding: 17px 16px 15px;
+  right: 12px;
+  width: 228px;
+}
+
+.whiteboard-guide strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.whiteboard-guide p {
+  margin: 0 0 8px;
+}
+
+.whiteboard-guide b {
+  font-weight: 700;
+}
+
+.whiteboard-guide kbd {
+  background: #e2e5e9;
+  border: 1px solid #cfd4da;
+  border-radius: 4px;
+  box-shadow: none;
+  font: inherit;
+  padding: 2px 5px;
+}
+
+.whiteboard-guide a {
+  color: #138c7d;
+  display: inline-block;
+  margin-top: 3px;
+  text-decoration: none;
+}
+
+.whiteboard-guide-close {
+  border-radius: 4px;
+  height: 24px;
+  padding: 0;
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  width: 24px;
+}
+
 .canvas-context {
   align-items: center;
   background: #ece5da;
   border-top: 1px solid #cec5b8;
-  color: #77736c;
+  color: #625e57;
   display: flex;
   flex: 0 0 34px;
   font-size: 11px;
@@ -489,7 +599,7 @@ select:focus-visible,
 }
 
 .editor-heading .pane-detail {
-  color: #777d79;
+  color: #a1aaa4;
 }
 
 .editor-body {
@@ -513,7 +623,7 @@ select:focus-visible,
 
 .file-tree-heading {
   align-items: center;
-  color: #777c78;
+  color: #a1aaa4;
   display: flex;
   font-size: 10px;
   font-weight: 700;
@@ -646,6 +756,39 @@ select:focus-visible,
   color: #d7dad5;
 }
 
+.run-toolbar {
+  align-items: center;
+  background: #202321;
+  border-bottom: 1px solid #343836;
+  display: flex;
+  flex: 0 0 39px;
+  gap: 9px;
+  height: 39px;
+  padding: 0 7px 0 9px;
+}
+
+.language-select {
+  background: #292d2b;
+  border: 1px solid #444945;
+  border-radius: 4px;
+  color: #d6d9d4;
+  height: 28px;
+  padding: 0 24px 0 8px;
+}
+
+.runner-status {
+  color: #858b87;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-toolbar .run-button {
+  height: 28px;
+  margin-left: auto;
+}
+
 .monaco-shell {
   flex: 1;
   min-height: 0;
@@ -718,7 +861,7 @@ select:focus-visible,
 }
 
 .run-state {
-  color: #7f8581;
+  color: #a1aaa4;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0;
@@ -730,21 +873,6 @@ select:focus-visible,
   display: flex;
   gap: 5px;
   min-width: 0;
-}
-
-.inline-select {
-  background: #292d2b;
-  border: 1px solid #3e4340;
-  border-radius: 3px;
-  color: #b8bcb8;
-  font-size: 10px;
-  height: 24px;
-  max-width: 116px;
-  padding: 0 5px;
-}
-
-.entrypoint-select {
-  max-width: 145px;
 }
 
 .output-stream {
@@ -768,7 +896,7 @@ select:focus-visible,
 }
 
 .output-placeholder {
-  color: #666c68;
+  color: #9ba29e;
 }
 
 .output-reopen {
@@ -896,6 +1024,24 @@ select:focus-visible,
   font-size: 17px;
   letter-spacing: 0.22em;
   text-align: center;
+}
+
+.runner-command {
+  background: #171a19;
+  border: 1px solid #444945;
+  border-radius: 4px;
+  color: #d9dcd7;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  white-space: pre-wrap;
+}
+
+.runner-setup-actions {
+  margin-top: 12px;
 }
 
 .dialog-actions {
@@ -1043,7 +1189,6 @@ select:focus-visible,
 }
 
 @media (max-width: 1120px) {
-  .runner-label,
   .topbar-utility {
     display: none;
   }
@@ -1074,9 +1219,7 @@ select:focus-visible,
   .brand span,
   .topbar-separator,
   .workspace-name,
-  .topbar-actions .run-button,
   .topbar-actions .share-button,
-  .runner-label,
   .topbar-utility,
   .presence {
     display: none;
