@@ -1,6 +1,8 @@
 # Common Ground
 
-Local-first architecture workbench: Excalidraw, a Python-first Monaco editor, portable `.ground` projects, local Docker execution, and encrypted ephemeral rooms.
+Local-first architecture workbench: Excalidraw, a Python-first Monaco editor, portable `.ground` projects, local Docker execution, and encrypted ephemeral rooms. Built for system design interviews.
+
+![Common Ground](image.png)
 
 ## Develop
 
